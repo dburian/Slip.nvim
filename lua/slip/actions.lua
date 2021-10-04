@@ -7,8 +7,10 @@
 local notes = require('slip.notes')
 local slips = require('slip.slips')
 local files = require('slip.files')
+local slip_conf = require('slip.config').opts
 local slip_finders = require('slip.telescope.finders')
 
+local tele_builtin = require('telescope.builtin')
 local pickers = require('telescope.pickers')
 local actions = require('telescope.actions')
 local action_set = require('telescope.actions.set')
@@ -59,10 +61,11 @@ function m.find_notes(opts)
   opts = opts or {}
   opts.slips = opts.slips or {slips.get_default()}
 
-  pickers.new({
-      finder = slip_finders.slip_notes(opts.slips),
-      previewer = tele_conf.file_previewer(opts),
-      sorter = tele_conf.generic_sorter(opts),
+  pickers.new(opts, {
+    prompt_title = 'Notes in ' .. table.concat(opts.slips, '/'),
+    finder = slip_finders.slip_notes(opts.slips),
+    previewer = tele_conf.file_previewer(opts),
+    sorter = tele_conf.generic_sorter(opts),
   }):find()
 end
 
@@ -78,25 +81,41 @@ function m.insert_link(opts)
     error('Cannot insert link. Current file is not a note.')
   end
 
-  pickers.new({
-      finder = slip_finders.slip_notes({opts.slip}),
-      previewer = tele_conf.file_previewer(opts),
-      sorter = tele_conf.generic_sorter(opts),
-      attach_mappings = function (prompt_bufnr)
-        action_set.select:replace(function ()
-          actions.close(prompt_bufnr)
-          local selected_note = action_state.get_selected_entry().value
+  pickers.new(opts, {
+    prompt_title = 'Link destination',
+    finder = slip_finders.slip_notes({opts.slip}),
+    previewer = tele_conf.file_previewer(opts),
+    sorter = tele_conf.generic_sorter(opts),
+    attach_mappings = function (prompt_bufnr)
+      action_set.select:replace(function ()
+        actions.close(prompt_bufnr)
+        local selected_note = action_state.get_selected_entry().value
 
-          curr_note:insert_link(selected_note)
+        curr_note:insert_link(selected_note)
 
-          if curr_mode == 'i' then
-            vim.api.nvim_feedkeys('a', 'n', true)
-          end
-        end)
+        if curr_mode == 'i' then
+          vim.api.nvim_feedkeys('a', 'n', true)
+        end
+      end)
 
-        return true
-      end
+      return true
+    end
   }):find()
+end
+
+function m.live_grep(opts)
+  opts = opts or {}
+  opts.slips = opts.slips or {slips.get_default()}
+
+  local search_dirs = {}
+  for _, s in ipairs(opts.slips) do
+    table.insert(search_dirs, slip_conf.slips[s].path)
+  end
+
+  tele_builtin.live_grep(vim.tbl_extend('keep', opts, {
+    prompt_title = 'Notes live grep in ' .. table.concat(opts.slips, '/'),
+    search_dirs = search_dirs,
+  }))
 end
 
 return m
