@@ -10,7 +10,7 @@ function slip.setup(opts)
   local succ, obj = pcall(config.setup, opts)
 
   if succ == false then
-    vim.cmd('throw \'' .. tostring(obj) .. '\'')
+    print('Slip.nvim error: \'' .. tostring(obj) .. '\'')
   end
 end
 

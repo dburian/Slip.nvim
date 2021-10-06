@@ -46,14 +46,15 @@ local set_slips = function (slips)
       source = opts,
       name = 'path',
       check = function (path)
-        local p_obj = Path:new(path)
-        -- Only accepting absolute paths (not completely functional workaround
-        -- until I do the pull request)
-        return p_obj:is_dir() and p_obj:is_absolute()
+        return vim.fn.isdirectory(vim.fn.expand(path)) == 1
       end,
       transform = function (path)
-        local expanded = Path:new(path):expand() --Takes care of ~
-        return Path:new(expanded):absolute()
+        -- getting rid of last slash if there is one
+        local real_path = vim.fn.expand(path)
+
+        return string.sub(real_path, #path) == '/' and
+          string.sub(real_path, 1, #path - 1) or
+          real_path
       end
     })
 
@@ -70,6 +71,13 @@ local set_slips = function (slips)
         name = 'name',
         -- TODO: uppercase first letter
         default = slip,
+    })
+
+    set_option({
+      target = slips_conf[slip],
+      source = opts,
+      name = 'bibliography_dir_name',
+      default = 'bibliography',
     })
 
     if m.opts._default_slip == nil then

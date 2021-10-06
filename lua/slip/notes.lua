@@ -16,14 +16,28 @@ local get_note_buf_handle = function (path)
 
   return nil
 end
+local get_slip_of_note = function (path)
+  for slip, slip_spec in pairs(config.opts.slips) do
+   local slip_path = slip_spec.path
+
+   if string.sub(path, 1, string.len(slip_path)) == slip_path then
+     return slip
+   end
+  end
+end
 
 local m = {}
 
-local Note = {}
+local Note = {
+  links_to = {},
+  line_nums = {},
+}
 Note.__index = Note
 
 function Note:new(metadata)
   local note = setmetatable(metadata, self)
+
+  note.valid = note.name ~= nil and note.filename ~= nil and note.slip ~= nil
 
   return note
 end
@@ -59,25 +73,26 @@ function Note:insert_link(note)
   vim.api.nvim_feedkeys('2f]', 'n', false)
 end
 
-function m.parse(slip, filename)
+function m.parse(path)
+  local slip = get_slip_of_note(path)
+  local slip_path = config.opts.slips[slip].path
+
   local md = {}
-  md.filename = filename
+  md.path = path
+  md.filename = string.sub(path, string.len(slip_path) + 2)
   md.slip = slip
   md.links_to = {}
   md.line_nums = {}
 
-  local path_obj = Path:new(config.opts.slips[slip].path, filename)
-  md.path = path_obj:absolute()
+  local note_buf_handle = get_note_buf_handle(path)
 
-  local note_buf_handle = get_note_buf_handle(md.path)
-
-  if not path_obj:is_file() and note_buf_handle == nil then
-    error('Path ' .. md.path .. ' cannot be parsed as note.')
+  if not vim.fn.filereadable(path) and note_buf_handle == nil then
+    return nil
   end
 
   local lines = nil
   if note_buf_handle == nil then
-    lines = Path:new(md.path):readlines()
+    lines = Path:new(path):readlines()
   else
     lines = vim.api.nvim_buf_get_lines(note_buf_handle, 0, -1, false)
   end
@@ -101,17 +116,32 @@ function m.parse(slip, filename)
       end
     end
 
-    -- The header is the last line to be read
+    -- The header is the last line read
     if md.name then
       break
     end
   end
 
+
   return Note:new(md)
 end
 
-function m.is_note(slip, filename)
-  return slip ~= nil and Path:new(config.opts.slips[slip].path, filename):exists()
+function m.get_new_note_path(slip, type)
+  local slip_spec = config.opts.slips[slip]
+
+  local dir_path = type == 'permanent' and
+    slip_spec.path or
+    slip_spec.path .. '/' .. slip_spec.bibliography_dir_name
+
+  local name_counter = #vim.fn.glob(dir_path .. '/*.md', false, true)
+
+  local note_path
+  repeat
+    name_counter = name_counter + 1
+    note_path = dir_path .. '/' .. string.format('%06x.md', name_counter)
+  until vim.fn.glob(note_path) == '' or name_counter > 1000
+
+  return note_path
 end
 
 return m

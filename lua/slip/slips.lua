@@ -31,10 +31,6 @@ function Index:write()
     table.insert(lines, string.format('1. [%s][%s]', leaf.name, leaf.target))
   end
 
-  for idx, line in ipairs(lines) do
-    print(string.format('%s %i', line, idx))
-  end
-
   local path = Path:new(self.path)
   path:write(table.concat(lines, '\n'), 'w')
 end
@@ -56,10 +52,6 @@ function Index:update(slip_notes)
     if not inner_node_filenames[n.filename] then
       table.insert(self.leaves, {name = n.name, target = n.filename})
     end
-  end
-
-  for _, leaf in ipairs(self.leaves) do
-    print(leaf.target)
   end
 
   self:write()

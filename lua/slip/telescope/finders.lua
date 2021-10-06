@@ -3,7 +3,7 @@
 -- Defines Telescope finders that interact with slip.nvim
 --
 
-local files = require('slip.files')
+local config = require('slip.config')
 local notes = require('slip.notes')
 
 local finders = require('telescope.finders')
@@ -13,10 +13,11 @@ local m = {}
 function m.slip_notes(slips)
   local entries = {}
   for _, slip in ipairs(slips) do
-    local filenames = files.scan_slip(slip)
+    --todo: do this with one_shot_job and ripgrep or find
+    local paths = vim.fn.glob(config.opts.slips[slip].path .. '/**/*.md', false, true)
 
-    for _, f in ipairs(filenames) do
-      table.insert(entries, notes.parse(slip, f))
+    for _, path in ipairs(paths) do
+      table.insert(entries, notes.parse(path))
     end
   end
 

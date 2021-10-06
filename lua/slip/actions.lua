@@ -6,8 +6,7 @@
 
 local notes = require('slip.notes')
 local slips = require('slip.slips')
-local files = require('slip.files')
-local slip_conf = require('slip.config').opts
+local config = require('slip.config').opts
 local slip_finders = require('slip.telescope.finders')
 
 local tele_builtin = require('telescope.builtin')
@@ -22,11 +21,22 @@ local m = {}
 function m.create_note(opts)
   opts = opts or {}
   opts.slip = opts.slip or slips.get_default()
+  opts.type = opts.type or 'permanent'
 
-  local path = files.get_new_note_path(opts.slip)
+
+  if opts.type == 'bibliographical' then
+    local slip_spec = config.slips[opts.slip]
+    local bib_dir_path = slip_spec.path .. '/' .. slip_spec.bibliography_dir_name
+
+    if 0 == vim.fn.isdirectory(bib_dir_path) then
+      print('succ: ' .. vim.fn.mkdir(bib_dir_path))
+    end
+  end
+
+  local path = notes.get_new_note_path(opts.slip, opts.type)
 
   local edit_cmd = opts.edit_cmd or 'edit'
-  vim.cmd(edit_cmd .. ' ' .. path:normalize(vim.fn.getcwd()))
+  vim.cmd(edit_cmd .. ' ' .. vim.fn.fnamemodify(path, ':~:.'))
 end
 
 function m.update_index(opts)
@@ -36,14 +46,14 @@ function m.update_index(opts)
   local notes_to_update = {}
 
   local add_all_notes = function (slip)
-    local slips_notes = files.scan_slip(slip)
+    local notes_paths = vim.fn.glob(config.slips[slip].path .. '/*.md', false, true)
 
-    if #slips_notes > 0 then
+    if #notes_paths > 0 then
       notes_to_update[slip] = {}
     end
 
-    for _, filename in ipairs(slips_notes) do
-      table.insert(notes_to_update[slip], notes.parse(slip, filename))
+    for _, path in ipairs(notes_paths) do
+      table.insert(notes_to_update[slip], notes.parse(path))
     end
   end
 
@@ -74,7 +84,11 @@ function m.insert_link(opts)
   opts = opts or {}
   opts.slip = opts.slip or slips.get_default()
 
-  local curr_note = notes.parse(slips.get_current(), vim.fn.expand('%:p:t'))
+  local curr_note = notes.parse(vim.fn.expand('%:p'))
+  if curr_note == nil then
+    error('Path ' .. vim.fn.expand('&:p') .. ' cannot be parsed as a note.')
+  end
+
   local curr_mode = vim.api.nvim_get_mode().mode
 
   if curr_note == nil then
@@ -109,13 +123,24 @@ function m.live_grep(opts)
 
   local search_dirs = {}
   for _, s in ipairs(opts.slips) do
-    table.insert(search_dirs, slip_conf.slips[s].path)
+    table.insert(search_dirs, config.slips[s].path)
   end
 
   tele_builtin.live_grep(vim.tbl_extend('keep', opts, {
     prompt_title = 'Notes live grep in ' .. table.concat(opts.slips, '/'),
     search_dirs = search_dirs,
   }))
+end
+
+function m.find_close_notes(opts)
+  opts = opts or {}
+  opts.note_path = opts.note_path or vim.fn.exepath('%:p')
+
+  local central_note = notes.parse(vim.fn.expand('%:p'))
+  if central_note == nil then
+    error('Path ' .. vim.fn.expand('&:p') .. ' cannot be parsed as a note.')
+  end
+
 end
 
 return m
