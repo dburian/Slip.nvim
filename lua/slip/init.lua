@@ -14,4 +14,10 @@ function slip.setup(opts)
   end
 end
 
+function slip.execute_command(...)
+  for _, a in ipairs(arg) do
+    print(a)
+  end
+end
+
 return slip

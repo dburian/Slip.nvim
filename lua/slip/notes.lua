@@ -9,6 +9,7 @@ local Path = require('plenary.path')
 
 local get_note_buf_handle = function (path)
   for _, buf_handle in ipairs(vim.api.nvim_list_bufs()) do
+    --TODO: really works with paths?
     if path == vim.api.nvim_buf_get_name(buf_handle) then
       return buf_handle
     end
@@ -39,12 +40,22 @@ function Note:new(metadata)
 
   note.valid = note.name ~= nil and note.filename ~= nil and note.slip ~= nil
 
+  if note.valid then
+    local bib_dir_name = config.opts.slips[note.slip].bibliography_dir_name
+    --TODO rename config opts, is there need for config opts?
+    note.type = string.sub(note.filename, 1, string.len(bib_dir_name)) == bib_dir_name and 'bibliographical' or 'permanent'
+  end
+
   return note
 end
 
 function Note:insert_link(note)
-  local link_name = string.match(note.filename, '/?(%w*)%.md')
   local link_target = note.filename
+  local link_name = string.match(note.filename, '/?(%w*)%.md')
+
+  if note.type == 'bibliographical' then
+    link_name = 'b/' .. link_name
+  end
 
   local new_link_def = true
   for _, l in ipairs(self.links_to) do
@@ -75,6 +86,11 @@ end
 
 function m.parse(path)
   local slip = get_slip_of_note(path)
+
+  if slip == nil then
+    return nil
+  end
+
   local slip_path = config.opts.slips[slip].path
 
   local md = {}

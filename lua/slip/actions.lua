@@ -18,6 +18,10 @@ local tele_conf = require('telescope.config').values
 
 local m = {}
 
+--TODO: transform this into "save" note?
+--advs. - user probably has convenient ways to split screen
+--      - we can check the syntax or update other notes
+--dis. advs. - no
 function m.create_note(opts)
   opts = opts or {}
   opts.slip = opts.slip or slips.get_default()
@@ -29,7 +33,7 @@ function m.create_note(opts)
     local bib_dir_path = slip_spec.path .. '/' .. slip_spec.bibliography_dir_name
 
     if 0 == vim.fn.isdirectory(bib_dir_path) then
-      print('succ: ' .. vim.fn.mkdir(bib_dir_path))
+      vim.fn.mkdir(bib_dir_path)
     end
   end
 
